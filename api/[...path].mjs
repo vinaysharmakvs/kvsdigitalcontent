@@ -1,5 +1,6 @@
 import {storageStatus} from '../r2.mjs';
 import {generate, generateImage, importDraft, schemaFor} from '../server.mjs';
+import {databaseRequest} from '../database.mjs';
 
 let active = false;
 
@@ -12,11 +13,29 @@ export const maxDuration = 60;
 
 export default {
   async fetch(request) {
-    const {pathname} = new URL(request.url);
+    const url = new URL(request.url);
+    const {pathname} = url;
 
     if(request.method==='GET'&&pathname==='/api/manual-schema')return json(200,schemaFor(false));
     if (request.method === 'GET' && pathname === '/api/status') {
       return json(200, {configured: !!(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL), imageConfigured: !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID), imageProvider: 'cloudflare', ...storageStatus()});
+    }
+
+    if (pathname === '/api/curricula') {
+      if (request.method === 'GET') {
+        const result = await databaseRequest('GET', Object.fromEntries(url.searchParams));
+        return json(result.status, result.body);
+      }
+      if (request.method !== 'POST') return json(405, {error: 'GET or POST required'});
+      if (!request.headers.get('content-type')?.startsWith('application/json')) return json(415, {error: 'JSON required'});
+      try {
+        const raw = await request.text();
+        if (Buffer.byteLength(raw) > 2000000) return json(413, {error: 'Mapping is too large'});
+        const result = await databaseRequest('POST', null, JSON.parse(raw));
+        return json(result.status, result.body);
+      } catch {
+        return json(400, {error: 'Invalid JSON'});
+      }
     }
 
     if (!['/api/generate', '/api/curriculum', '/api/image', '/api/import'].includes(pathname)) return json(404, {error: 'Not found'});
