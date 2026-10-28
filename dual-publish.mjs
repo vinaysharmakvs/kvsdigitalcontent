@@ -1,12 +1,8 @@
 import {ingestContent} from './content-ingestion.mjs';
 import {publishGamePackage,validateGamePackage} from './game-api.mjs';
 
-export const liveFeedUrl='https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed';
-export function liveEnvironment(env=process.env){
-  const url=env.GAME_API_URL;
-  // Replace the previously supplied API base with the route confirmed in the backend repository.
-  return {...env,GAME_API_URL:!url||/^https:\/\/kidsverse-apinew\.vercel\.app\/api\/v1\/?$/.test(url)?liveFeedUrl:url};
-}
+export {liveFeedUrl,liveEnvironment} from './live-api.mjs';
+import {liveEnvironment} from './live-api.mjs';
 export async function publishBoth(payload,env=process.env,saveOriginal=ingestContent,saveLive=publishGamePackage){
   try{validateGamePackage(payload);}catch(error){return {status:400,body:{error:error.message}};}
   const results=await Promise.allSettled([saveOriginal(payload),saveLive(payload,liveEnvironment(env))]);

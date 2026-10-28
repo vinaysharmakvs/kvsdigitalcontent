@@ -312,12 +312,13 @@ body[data-learn-step="example"] .alternative-section{display:block}
       </div>
       <div class="buttons">
         <button class="primary" onclick="savePackage()">Download Complete Package</button>
-        <button class="secondary" id="sendGameBtn" onclick="sendToGame()">Save to both databases</button>
+        <button class="secondary" id="sendGameBtn" onclick="sendToGame()">Push to new API</button>
         <button class="danger" onclick="resetDraft()">Clear draft</button>
         <button class="secondary" onclick="copyPayload()">Copy Payload</button>
       </div>
       <div id="saveStatus" class="success" style="display:none;margin-top:12px"></div>
       <p id="gamePublishStatus" role="status" aria-live="polite">Save the selected class, board, subject, topic and concept with all lessons, pictures and questions in one request.</p>
+      <div class="note" style="margin-top:16px"><b>Read saved content from the new API</b><div class="buttons"><button type="button" class="secondary" id="listLiveBtn" onclick="listLivePackages()">Find saved packages</button><label for="livePackageSelect">Saved package</label><select id="livePackageSelect" disabled></select><button type="button" class="secondary" id="loadLiveBtn" disabled onclick="loadLivePackage()">Load from new API</button></div><p id="liveLoadStatus" role="status" aria-live="polite">Reads saved questions and pictures directly from the new backend.</p></div>
       <div id="reviewChecklist" class="review-checklist" aria-live="polite"></div>
       <details class="json-details"><summary>Inspect complete JSON payload</summary><div class="json" id="json" style="margin-top:14px">{}</div></details>
     </div>
@@ -336,7 +337,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
  <div class="dialog-body"><h2 id="replaceDraftTitle">Replace current draft?</h2><p>The new content replaces the teaching copy, learning screens, questions and current image URLs. New image briefs will be ready to generate.</p>
  <form method="dialog" class="buttons"><button class="secondary" value="cancel" autofocus>Keep current draft</button><button class="primary" value="replace">Replace draft</button></form></div>
 </dialog>
-<script src="/mapping.js"></script>
+<script src="/mapping.js?v=new-api-only-8"></script>
 <script>
 if(!new URLSearchParams(location.search).has('studio'))location.replace('/curriculum.html');
 let catalog = {};
@@ -606,7 +607,7 @@ function renderChildPreview(){
     return;
   }
   $('previewCaption').textContent='Package coverage at a glance';
-  target.innerHTML=`<div class="preview-screen"><div class="preview-content"><span class="preview-kicker">Package coverage</span><h3>${esc(payload.concept.name||'Untitled concept')}</h3><p>${esc(payload.curriculum.grade)} · ${esc(payload.curriculum.subject)} · ${esc(payload.curriculum.topic)}</p><div class="preview-idea"><b>3 learning steps</b><br>Understand → Example with 3 ways → Remember</div><div class="preview-count"><span>Mission check</span><strong>${payload.check_for_understanding.length}</strong></div><div class="preview-count"><span>Test</span><strong>${payload.test_questions.questions.length}</strong></div><div class="preview-count"><span>Battle</span><strong>${payload.battle_questions.length}</strong></div><div class="preview-count"><span>Challenge</span><strong>${payload.challenge.questions.length}</strong></div><div class="preview-warning">Download a JSON package, or use Save to both databases from the local CMS after reviewing the content and hosted pictures.</div></div></div>`;
+  target.innerHTML=`<div class="preview-screen"><div class="preview-content"><span class="preview-kicker">Package coverage</span><h3>${esc(payload.concept.name||'Untitled concept')}</h3><p>${esc(payload.curriculum.grade)} · ${esc(payload.curriculum.subject)} · ${esc(payload.curriculum.topic)}</p><div class="preview-idea"><b>3 learning steps</b><br>Understand → Example with 3 ways → Remember</div><div class="preview-count"><span>Mission check</span><strong>${payload.check_for_understanding.length}</strong></div><div class="preview-count"><span>Test</span><strong>${payload.test_questions.questions.length}</strong></div><div class="preview-count"><span>Battle</span><strong>${payload.battle_questions.length}</strong></div><div class="preview-count"><span>Challenge</span><strong>${payload.challenge.questions.length}</strong></div><div class="preview-warning">Download a JSON package, or use Push to new API from the local CMS after reviewing the content and hosted pictures.</div></div></div>`;
 }
 function renderReviewChecklist(payload){
   const banks=[payload.check_for_understanding,payload.test_questions.questions,payload.battle_questions,payload.challenge.questions];
@@ -867,5 +868,5 @@ async function generateCurriculum(){
 }
 checkSetup();
 </script>
-<script src="/workflow.js?v=dual-db-7"></script></body>
+<script src="/workflow.js?v=new-api-only-8"></script><script src="/live-loader.js?v=new-api-only-8"></script></body>
 </html>

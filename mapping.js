@@ -1,7 +1,7 @@
 // Shared browser storage contract for Curriculum Mapping and Content Studio.
-const curriculumMappingStorageKey='kidsverseCurriculumMapping';
+const curriculumMappingStorageKey='kidsverseNewApiMappingV1';
 function curriculumContextKey(context){
- return 'kidsverseCurriculumCatalogV1:'+JSON.stringify(['grade','board','subject'].map(key=>context[key]));
+ return 'kidsverseNewApiCatalogV1:'+JSON.stringify(['grade','board','subject'].map(key=>context[key]));
 }
 function normalizeCurriculumMapping(value){
  if(!value?.curriculum||['grade','board','subject'].some(key=>typeof value.curriculum[key]!=='string'||!value.curriculum[key].trim()||value.curriculum[key].length>200))return null;

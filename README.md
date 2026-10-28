@@ -31,18 +31,14 @@ Images are hosted in R2 rather than embedded in the JSON. The local original-ima
 
 Run `npm test`. Tests cover structured content, manual JSON import, provider failures, R2 uploads, all eighteen image slots, retrying empty slots, and restoring drafts. Provider requests in tests are mocked; live Gemini, Workers AI and R2 calls require configured credentials and have not been verified here.
 
-## Push to DB: both destinations
+## New API only
 
-Review & export → **Push to DB** makes one CMS request to `POST /api/publish-game`. The server validates the complete package, saves it to the original DATABASE_URL database's separate cms_content tables, and forwards it to the real external route `https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed`. GAME_API_URL can override this route; the previously supplied /api/v1/ base is normalized to the confirmed feed route. Optional GAME_API_TOKEN remains server-only.
+The CMS now uses only `https://kidsverse-apinew.vercel.app/api/v1/` for saved curriculum and content. Push to DB forwards a complete package to `admin/content/feed`. `/api/live-content?target=tree` forwards to `curriculum/tree`; target=packages forwards to `admin/content/packages`; target=package&id=UUID reads `admin/content/packages/UUID`. The reader allows only these fixed routes and forwards only supported filters. Secrets remain server-side.
 
-Each destination returns its own saved status, package IDs and question counts. HTTP 201 means both confirmed success; HTTP 207 means at least one destination did not confirm. The UI shows both results and only marks the complete request successful when both saved. Writes are not automatically retried. If a remote failure or timeout occurs, check that database before manually retrying. Two independent databases do not share a transaction; partial success is possible.
+The original `/api/curricula` and local demo `/api/content/ingest` routes return 410. Neither publishing nor reading calls the original database. Earlier records have not been deleted. Existing DATABASE_URL credentials remain unchanged but are not used by active CMS routes.
 
-On October 28, 2026 the live feed accepted OPTIONS (200, POST allowed), but a full POST returned HTTP 500. Its curriculum/tree and curriculums GET routes also returned 500. These are external backend failures, not a missing CMS endpoint. No live remote success is claimed.
+Browser mappings and studio drafts now use new storage keys. Old cached selections/drafts are ignored, not erased. Subject/class changes load the new API instead of restoring previous subject caches. API failures show explicitly and never load data from the old database. A complete generated curriculum cannot be independently saved because the backend has no bulk topic-create route; publish the selected concept with a complete content package.
 
-## Curriculum mapping scope
+In Review & export, **Find saved packages** lists packages for the exact current class, board, subject, topic and concept. Select a package and click **Load from new API** to read lessons, alternate examples, question banks and hosted URLs into the editor. Replacing the editor asks for confirmation. The readback status identifies the new API and package ID. No generation or image calls are made during loading.
 
-The existing /api/curricula API and kidsverse tables continue to store complete versioned mappings. Push to DB includes the selected board, grade, subject, topic, concept and objective in both content packages. The external repository exposes curriculum/tree for reading and a full content feed for writing, but no bulk curriculum/topic create route. Saving an entire generated mapping to the second database independently of lessons still requires an appropriate backend endpoint. Empty placeholder packages are never sent, because the backend publishes packages and replaces their existing questions.
-
-## Local database demo
-
-The separate local-only /api/content/ingest route remains available for the earlier demo. It uses DATABASE_URL and cms_content relational tables, without changing existing kidsverse curriculum tables. The direct demo route is not exposed by Vercel; the dual publishing service uses the same persistence function for the original destination. Earlier test records remain preserved.
+The backend's confirmed routes returned HTTP 500 during the October 28 connection check. Those external errors must be fixed before curriculum and question readback can be demonstrated against live data; the CMS does not claim a successful remote save/read when that API fails.

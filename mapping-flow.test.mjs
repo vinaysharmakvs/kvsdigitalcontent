@@ -37,18 +37,18 @@ test('generated English mapping enables both continue buttons and carries edited
  context.restoreCurriculumMapping();assert.equal(get('objective').value,'Recognize collective nouns in short sentences.');assert.equal(get('concept').value,'1');
 });
 
-test('changing class clears stale topics and returning restores the correct saved catalog',()=>{
+test('new API reset ignores old cached topics even when returning to a previous class',()=>{
  const {get,context}=harness();runInNewContext(curriculumSource,context);
- context.saveCurriculumMapping(english);context.restoreCurriculumMapping();
+ context.saveCurriculumMapping(english);context.applyCurriculumMapping(english);
  get('grade').value='Grade 4';context.changeCurriculumContext();
  assert.equal(get('topic').value,'');assert.equal(get('objective').value,'');assert.equal(get('openStudioBtn').disabled,true);
  assert.equal(context.readSavedCurriculumMapping().curriculum.grade,'Grade 4');assert.equal(context.readSavedCurriculumMapping().curriculum.subject,'English');
- get('grade').value='Grade 3';context.changeCurriculumContext();assert.equal(get('topic').value,'Nouns');assert.equal(context.current().name,'Common and Proper Nouns');
+ get('grade').value='Grade 3';context.changeCurriculumContext();assert.equal(get('topic').value,'');assert.equal(context.current().name,'');
  get('board').value='CBSE';context.changeCurriculumContext();assert.equal(get('topic').value,'');
 });
 
 test('failed browser saving keeps the user on Mapping instead of opening an old selection',()=>{
- const {context,block,get}=harness();runInNewContext(curriculumSource,context);context.saveCurriculumMapping(english);context.restoreCurriculumMapping();block();context.saveAndOpen();
+ const {context,block,get}=harness();runInNewContext(curriculumSource,context);context.saveCurriculumMapping(english);context.applyCurriculumMapping(english);block();context.saveAndOpen();
  assert.equal(context.location.href,'');assert.match(get('mappingSaveStatus').textContent,/Could not save/);
 });
 

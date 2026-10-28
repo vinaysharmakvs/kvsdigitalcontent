@@ -26,7 +26,7 @@ test('Vercel forwarding validates requests and sends the full package to live AP
   globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed');assert.equal(options.method,'POST');assert.deepEqual(JSON.parse(options.body),fixture());return Response.json({status:'success',data:{package_id:'live-test'}},{status:201});};
   const request=body=>new Request('https://kvsdigitalcontent.vercel.app/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://kvsdigitalcontent.vercel.app'},body:JSON.stringify(body)});
   assert.equal((await handler.fetch(request({}))).status,400);assert.equal(calls,0);
-  const response=await handler.fetch(request(fixture()));assert.equal(response.status,207);const body=await response.json();assert.equal(body.targets.live.data.package_id,'live-test');assert.equal(body.targets.original.saved,false);assert.equal(calls,1);
+  const response=await handler.fetch(request(fixture()));assert.equal(response.status,201);const body=await response.json();assert.equal(body.data.package_id,'live-test');assert.equal(body.targets,undefined);assert.equal(calls,1);
   const crossOrigin=new Request('https://kvsdigitalcontent.vercel.app/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://other.example'},body:JSON.stringify(fixture())});
   assert.equal((await handler.fetch(crossOrigin)).status,403);assert.equal(calls,1);
  }finally{globalThis.fetch=originalFetch;if(originalUrl===undefined)delete process.env.GAME_API_URL;else process.env.GAME_API_URL=originalUrl;}
@@ -45,4 +45,27 @@ test('dual publishing reports each destination, including partial and thrown fai
  assert.equal(thrown.body.targets.original.saved,false);assert.equal(thrown.body.targets.live.saved,true);assert.ok(!JSON.stringify(thrown).includes('secret'));
  assert.equal(liveEnvironment({GAME_API_URL:'https://kidsverse-apinew.vercel.app/api/v1/'}).GAME_API_URL,'https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed');
  let calls=0;assert.equal((await publishBoth({}, {},async()=>{calls++;},async()=>{calls++;})).status,400);assert.equal(calls,0);
+});
+
+
+test('new API reader uses only confirmed routes and never falls back on failure',async()=>{
+ const {readLiveContent}=await import('./live-api.mjs');let calls=0;
+ const fetcher=async(url,options)=>{calls++;const u=new URL(url);assert.equal(u.origin,'https://kidsverse-apinew.vercel.app');assert.equal(u.pathname,'/api/v1/curriculum/tree');assert.equal(u.searchParams.get('subject'),'English');return Response.json({topics:[{name:'Letters',subject:'English',concepts:[{name:'ABC',objective:'Recognize'}]},{name:'Wrong subject',subject:'Maths',concepts:[{name:'Counting'}]}]});};
+ const r=await readLiveContent({target:'tree',subject:'English'}, {},fetcher);assert.equal(r.status,200);assert.equal(r.body.source,'new-api');assert.equal(r.body.mapping.topics.length,1);
+ const failed=await readLiveContent({target:'packages'}, {},async()=>new Response('Server Error',{status:500}));assert.equal(failed.status,502);assert.equal(failed.body.upstreamStatus,500);assert.equal(failed.body.mapping,undefined);
+ const bad=await readLiveContent({target:'package',id:'../../old-db'}, {},()=>assert.fail());assert.equal(bad.status,400);assert.equal(calls,1);
+ const handler=(await import('./api/[...path].mjs')).default;
+ assert.equal((await handler.fetch(new Request('https://cms.example/api/curricula'))).status,410);
+});
+
+
+test('new API package readback fills lessons, hosted URLs and all banks without generating content',()=>{
+ const p=fixture();p.id='readback-package';p.learning_content.hints=['One','Two','Three'];
+ const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{value:'',textContent:''});return nodes.get(id);};
+ let cleared=0;
+ const ctx={$,buildPayload:fixture,learningStepNames:['Understand','Example','Remember'],questionData:{},questionCounters:{},clearAuthoring(){cleared++;},renderQuestions(){},updatePayload(){},queueDraftSave(){},showWorkspace(){}};
+ runInNewContext(readFileSync(new URL('./live-loader.js',import.meta.url),'utf8'),ctx);
+ ctx.applyLivePackage(p);assert.equal(cleared,1);assert.equal($('imageUrl').value,p.learning_content.image_url);assert.equal(ctx.questionData.test[0].question,p.test_questions.questions[0].question);assert.equal(ctx.questionData.test[0].options,'A | B | C | D');assert.match($('draftStatus').textContent,/Loaded from new API/);
+ const invalid=structuredClone(p);invalid.curriculum.subject='Other';assert.throws(()=>ctx.applyLivePackage(invalid));assert.equal(cleared,1);
+ const bad=structuredClone(p);bad.battle_questions[0].options=null;assert.throws(()=>ctx.applyLivePackage(bad));assert.equal(cleared,1);
 });

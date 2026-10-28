@@ -1,7 +1,5 @@
-import {gameConfig} from './game-api.mjs';
-import {publishBoth,liveEnvironment} from './dual-publish.mjs';
-import {ingestContent} from './content-ingestion.mjs';
-import {databaseRequest} from './database.mjs';
+import {gameConfig,publishGamePackage} from './game-api.mjs';
+import {liveEnvironment,readLiveContent} from './live-api.mjs';
 import http from 'node:http';
 import {uploadImage, storageStatus} from './r2.mjs';
 import {readFile} from 'node:fs/promises';
@@ -156,25 +154,24 @@ export function createServer(){
  // Local base: reject cross-origin and DNS-rebinding requests; bind only loopback.
  if(!/^localhost(?::\d+)?$|^127\.0\.0\.1(?::\d+)?$/.test(req.headers.host||''))return send(403,{error:'Local access only.'});
  if(req.headers.origin&&req.headers.origin!=='http://'+req.headers.host)return send(403,{error:'Origin not allowed.'});
- if(req.method==='GET'&&['/studio.css','/workflow.js','/mapping.js','/curriculum.js','/curriculum-db.js'].includes(pathname)){res.writeHead(200,{'Content-Type':pathname.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(await readFile(new URL('.'+pathname,import.meta.url)));}
+ if(req.method==='GET'&&['/studio.css','/workflow.js','/mapping.js','/curriculum.js','/curriculum-db.js','/live-loader.js'].includes(pathname)){res.writeHead(200,{'Content-Type':pathname.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(await readFile(new URL('.'+pathname,import.meta.url)));}
  if(['/api/game/status','/api/publish-status'].includes(pathname)&&req.method==='GET'){
   let configured=false;try{gameConfig(liveEnvironment());configured=true;}catch{}
   return send(200,{configured});
  }
- if(['/api/game/publish','/api/publish-game'].includes(pathname)||pathname==='/api/content/ingest'){
+ if(['/api/game/publish','/api/publish-game'].includes(pathname)){
   if(req.method!=='POST')return send(405,{error:'POST required'});
   if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'JSON required'});
   if(active)return send(429,{error:'An operation is already in progress.'});
   let raw='';try{for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>2000000)return send(413,{error:'Package is too large.'});}
-   const input=JSON.parse(raw);active=true;try{const result=pathname==='/api/content/ingest'?await ingestContent(input):await publishBoth(input);return send(result.status,result.body);}finally{active=false;}
+   const input=JSON.parse(raw);active=true;try{const result=await publishGamePackage(input,liveEnvironment());return send(result.status,result.body);}finally{active=false;}
   }catch{return send(400,{error:'Invalid JSON package.'});}
  }
- if(pathname==='/api/curricula'){
-  if(req.method==='GET'){const result=await databaseRequest('GET',Object.fromEntries(new URL(req.url,'http://localhost').searchParams));return send(result.status,result.body);}
-  if(req.method!=='POST')return send(405,{error:'GET or POST required'});
-  if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'JSON required'});
-  let raw='';try{for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>2000000)return send(413,{error:'Mapping is too large'});}const result=await databaseRequest('POST',null,JSON.parse(raw));return send(result.status,result.body);}catch{return send(400,{error:'Invalid JSON'});}
+ if(pathname==='/api/live-content'){
+  if(req.method!=='GET')return send(405,{error:'GET required'});
+  const result=await readLiveContent(Object.fromEntries(new URL(req.url,'http://localhost').searchParams));return send(result.status,result.body);
  }
+ if(['/api/curricula','/api/content/ingest'].includes(pathname))return send(410,{error:'Old database is disabled. Use the new API.'});
  if(req.method==='GET'&&pathname==='/api/manual-schema')return send(200,schemaFor(false));
  if(req.method==='GET'&&pathname==='/api/status'){const cloudflare=!!(process.env.CLOUDFLARE_API_TOKEN&&process.env.CLOUDFLARE_ACCOUNT_ID);return send(200,{configured:!!(process.env.GEMINI_API_KEY&&process.env.GEMINI_MODEL),imageConfigured:cloudflare,imageProvider:'cloudflare',...storageStatus()});}
  if(req.method==='GET'&&(pathname==='/'||pathname==='/index.html'||pathname==='/curriculum.html')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return res.end(await readFile(new URL(pathname==='/curriculum.html'?'./curriculum.html':'./index.html',import.meta.url)));}

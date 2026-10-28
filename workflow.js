@@ -151,7 +151,7 @@ function syncSavedCurriculumMapping(){
  }
 }
 function studioDraftKey(){
- const concept=currentConcept();return concept.name?'kidsverseStudioDraftV1:'+JSON.stringify([$('grade').value,$('board').value,$('subject').value,$('topic').value,concept.name]):null;
+ const concept=currentConcept();return concept.name?'kidsverseNewApiStudioDraftV1:'+JSON.stringify([$('grade').value,$('board').value,$('subject').value,$('topic').value,concept.name]):null;
 }
 function studioDraftFields(){
  return [...document.querySelectorAll('input[id],textarea[id]')].filter(field=>!field.closest('dialog')&&!field.dataset.q&&field.id!=='manualJsonFile');
@@ -229,7 +229,7 @@ async function sendToGame(){
  if(snapshot===lastGamePublishedJson){status.textContent='This package was already sent successfully. Edit the content before sending another version.';return;}
  gamePublishBusy=true;operationBusy=true;button.disabled=true;button.textContent='Sending…';button.setAttribute('aria-busy','true');
  const footerButton=document.getElementById('footerPushDb');if(footerButton){footerButton.disabled=true;footerButton.textContent='Sending…';footerButton.setAttribute('aria-busy','true');}
- status.textContent='Saving the complete package to both databases…';
+ status.textContent='Saving the complete package through the new live API…';
  try{
   const response=await fetch('/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json'},body:snapshot,signal:AbortSignal.timeout(55000)});
   let result;try{result=await response.json();}catch{throw Error('Publishing is available from the local CMS. No readable confirmation received; check saved content before sending again.');}
@@ -245,5 +245,5 @@ async function sendToGame(){
   const counts=result.data.questions_saved;
   status.textContent='Saved to database. Package: '+result.data.package_id+(counts?' · '+counts.total+' questions':'');
  }catch(error){status.textContent=error.name==='TimeoutError'?'No confirmation received. Check saved content before sending again.':error.message;}
- finally{gamePublishBusy=false;operationBusy=false;button.disabled=false;button.textContent='Save content to database';button.removeAttribute('aria-busy');if(footerButton){footerButton.disabled=false;footerButton.textContent='Push to DB';footerButton.removeAttribute('aria-busy');}syncStudioUI();}
+ finally{gamePublishBusy=false;operationBusy=false;button.disabled=false;button.textContent='Push to new API';button.removeAttribute('aria-busy');if(footerButton){footerButton.disabled=false;footerButton.textContent='Push to DB';footerButton.removeAttribute('aria-busy');}syncStudioUI();}
 }
