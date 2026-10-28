@@ -1,3 +1,5 @@
+import {publishGamePackage, gameConfig} from './game-api.mjs';
+import {ingestContent} from './content-ingestion.mjs';
 import {databaseRequest} from './database.mjs';
 import http from 'node:http';
 import {uploadImage, storageStatus} from './r2.mjs';
@@ -154,6 +156,18 @@ export function createServer(){
  if(!/^localhost(?::\d+)?$|^127\.0\.0\.1(?::\d+)?$/.test(req.headers.host||''))return send(403,{error:'Local access only.'});
  if(req.headers.origin&&req.headers.origin!=='http://'+req.headers.host)return send(403,{error:'Origin not allowed.'});
  if(req.method==='GET'&&['/studio.css','/workflow.js','/mapping.js','/curriculum.js','/curriculum-db.js'].includes(pathname)){res.writeHead(200,{'Content-Type':pathname.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(await readFile(new URL('.'+pathname,import.meta.url)));}
+ if(pathname==='/api/game/status'&&req.method==='GET'){
+  let configured=false;try{gameConfig();configured=true;}catch{}
+  return send(200,{configured});
+ }
+ if(pathname==='/api/game/publish'||pathname==='/api/content/ingest'){
+  if(req.method!=='POST')return send(405,{error:'POST required'});
+  if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'JSON required'});
+  if(active)return send(429,{error:'An operation is already in progress.'});
+  let raw='';try{for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>2000000)return send(413,{error:'Package is too large.'});}
+   const input=JSON.parse(raw);active=true;try{const result=pathname==='/api/content/ingest'?await ingestContent(input):await publishGamePackage(input);return send(result.status,result.body);}finally{active=false;}
+  }catch{return send(400,{error:'Invalid JSON package.'});}
+ }
  if(pathname==='/api/curricula'){
   if(req.method==='GET'){const result=await databaseRequest('GET',Object.fromEntries(new URL(req.url,'http://localhost').searchParams));return send(result.status,result.body);}
   if(req.method!=='POST')return send(405,{error:'GET or POST required'});

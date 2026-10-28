@@ -30,3 +30,15 @@ Images are hosted in R2 rather than embedded in the JSON. The local original-ima
 ## Verification
 
 Run `npm test`. Tests cover structured content, manual JSON import, provider failures, R2 uploads, all eighteen image slots, retrying empty slots, and restoring drafts. Provider requests in tests are mocked; live Gemini, Workers AI and R2 calls require configured credentials and have not been verified here.
+
+## Push to DB through the live API
+
+Review & export → **Push to DB** sends the complete current package to the CMS endpoint `POST /api/game/publish`. The CMS forwards one JSON POST to the external ingestion API. Both localhost and Vercel support this connector. No demo database writes are performed by this button.
+
+On Vercel, set `GAME_API_URL` to the full ingestion route. Until overridden, the hosted connector uses the supplied base URL `https://kidsverse-apinew.vercel.app/api/v1/`. This address returned HTTP 404 in the live POST check on October 28, 2026: a working content ingestion route is still required. A successful deployment of the connector does not confirm ingestion.
+
+If Bearer authentication is required, set `GAME_API_TOKEN` in the CMS environment. Credentials stay on the server. The connector does not automatically retry writes and never falls back to the demo database. Success requires JSON `status: "success"` and `data.package_id`; the UI displays the package ID and saved question count. API 404 and authentication failures are reported explicitly.
+
+## Local database demo
+
+The separate local-only `/api/content/ingest` route remains available for the earlier demo. It stores related content records in the `cms_content` schema using `DATABASE_URL`, preserving existing `kidsverse` curriculum tables. It is not exposed by the Vercel handler and is no longer connected to Push to DB. Its earlier saved test records remain in the database.

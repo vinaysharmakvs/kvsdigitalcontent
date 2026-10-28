@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
-    "test": "node --test test.mjs studio-flow.test.mjs r2.test.mjs workflow.test.mjs mapping-flow.test.mjs database.test.mjs curriculum-db.test.mjs",
+    "test": "node --test test.mjs studio-flow.test.mjs r2.test.mjs workflow.test.mjs mapping-flow.test.mjs database.test.mjs curriculum-db.test.mjs game-api.test.mjs",
     "dev": "node --env-file-if-exists=.env server.mjs",
     "db:init": "node --env-file=.env db/init.mjs"
   },

@@ -87,6 +87,7 @@ function syncStudioUI(){
  $('workflowLabel').textContent=`Step ${index+1} of 4 · ${workspaceNames[index]}`;
  $('workflowHint').textContent=['Create or import your draft.','Review each screen and its tiny check.','Check answers, explanations and hints.','Review the checklist and download your package.'][index];
  $('workflowBack').disabled=index===0||operationBusy;
+ const pushButton=document.getElementById('footerPushDb');if(pushButton){pushButton.hidden=index!==3;pushButton.disabled=operationBusy;}
  $('workflowNext').textContent=index===3?'Download package ↓':`Next: ${workspaceNames[index+1]} →`;
  const screens=learningStepNames.filter(name=>$('learn'+name+'Title').value.trim()&&$('learn'+name+'Text').value.trim()).length;
  const questions=Object.values(questionData).flat().filter(q=>q.question?.trim()).length;
@@ -215,4 +216,28 @@ if(document.getElementById('workflowNext')){
  showToast=function(message){const toast=$('toast');clearTimeout(toastTimer);toast.textContent=message;toast.style.display='block';toastTimer=setTimeout(()=>toast.style.display='none',5000);};
 }else{
  document.querySelectorAll('label:not([for])').forEach(label=>{const field=label.nextElementSibling;if(field?.id&&field.matches('input,textarea,select'))label.htmlFor=field.id;});
+}
+
+
+let gamePublishBusy=false;
+let lastGamePublishedJson=null;
+async function sendToGame(){
+ if(gamePublishBusy||operationBusy)return;
+ const snapshot=JSON.stringify(buildPayload());
+ const status=$('gamePublishStatus'),button=$('sendGameBtn');
+ status.scrollIntoView?.({block:'center',behavior:'smooth'});
+ if(snapshot===lastGamePublishedJson){status.textContent='This package was already sent successfully. Edit the content before sending another version.';return;}
+ gamePublishBusy=true;operationBusy=true;button.disabled=true;button.textContent='Sending…';button.setAttribute('aria-busy','true');
+ const footerButton=document.getElementById('footerPushDb');if(footerButton){footerButton.disabled=true;footerButton.textContent='Sending…';footerButton.setAttribute('aria-busy','true');}
+ status.textContent='Saving the selected curriculum and complete content package to the database…';
+ try{
+  const response=await fetch('/api/game/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:snapshot,signal:AbortSignal.timeout(55000)});
+  let result;try{result=await response.json();}catch{throw Error('Publishing is available from the local CMS. No readable confirmation received; check saved content before sending again.');}
+  if(!response.ok)throw Error(result.error||'The database API did not confirm this package.');
+  if(result.status!=='success'||!result.data?.package_id)throw Error('No package confirmation received. Check saved content before sending again.');
+  lastGamePublishedJson=snapshot;
+  const counts=result.data.questions_saved;
+  status.textContent='Saved to database. Package: '+result.data.package_id+(counts?' · '+counts.total+' questions':'');
+ }catch(error){status.textContent=error.name==='TimeoutError'?'No confirmation received. Check saved content before sending again.':error.message;}
+ finally{gamePublishBusy=false;operationBusy=false;button.disabled=false;button.textContent='Save content to database';button.removeAttribute('aria-busy');if(footerButton){footerButton.disabled=false;footerButton.textContent='Push to DB';footerButton.removeAttribute('aria-busy');}syncStudioUI();}
 }
