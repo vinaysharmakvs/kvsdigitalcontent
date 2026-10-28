@@ -18,11 +18,11 @@ export default {
     const url = new URL(request.url);
     const {pathname} = url;
 
-    if(pathname==='/api/game/status'&&request.method==='GET'){
+    if(['/api/game/status','/api/publish-status'].includes(pathname)&&request.method==='GET'){
       let configured=false;try{gameConfig(liveApiEnv());configured=true;}catch{}
       return json(200,{configured});
     }
-    if(pathname==='/api/game/publish'){
+    if(['/api/game/publish','/api/publish-game'].includes(pathname)){
       if(request.method!=='POST')return json(405,{error:'POST required'});
       if(request.headers.get('origin')&&request.headers.get('origin')!==url.origin)return json(403,{error:'Origin not allowed.'});
       if(!request.headers.get('content-type')?.startsWith('application/json'))return json(415,{error:'JSON required'});

@@ -156,11 +156,11 @@ export function createServer(){
  if(!/^localhost(?::\d+)?$|^127\.0\.0\.1(?::\d+)?$/.test(req.headers.host||''))return send(403,{error:'Local access only.'});
  if(req.headers.origin&&req.headers.origin!=='http://'+req.headers.host)return send(403,{error:'Origin not allowed.'});
  if(req.method==='GET'&&['/studio.css','/workflow.js','/mapping.js','/curriculum.js','/curriculum-db.js'].includes(pathname)){res.writeHead(200,{'Content-Type':pathname.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(await readFile(new URL('.'+pathname,import.meta.url)));}
- if(pathname==='/api/game/status'&&req.method==='GET'){
+ if(['/api/game/status','/api/publish-status'].includes(pathname)&&req.method==='GET'){
   let configured=false;try{gameConfig();configured=true;}catch{}
   return send(200,{configured});
  }
- if(pathname==='/api/game/publish'||pathname==='/api/content/ingest'){
+ if(['/api/game/publish','/api/publish-game'].includes(pathname)||pathname==='/api/content/ingest'){
   if(req.method!=='POST')return send(405,{error:'POST required'});
   if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'JSON required'});
   if(active)return send(429,{error:'An operation is already in progress.'});

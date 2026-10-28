@@ -231,7 +231,7 @@ async function sendToGame(){
  const footerButton=document.getElementById('footerPushDb');if(footerButton){footerButton.disabled=true;footerButton.textContent='Sending…';footerButton.setAttribute('aria-busy','true');}
  status.textContent='Saving the selected curriculum and complete content package to the database…';
  try{
-  const response=await fetch('/api/game/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:snapshot,signal:AbortSignal.timeout(55000)});
+  const response=await fetch('/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json'},body:snapshot,signal:AbortSignal.timeout(55000)});
   let result;try{result=await response.json();}catch{throw Error('Publishing is available from the local CMS. No readable confirmation received; check saved content before sending again.');}
   if(!response.ok)throw Error(result.error||'The database API did not confirm this package.');
   if(result.status!=='success'||!result.data?.package_id)throw Error('No package confirmation received. Check saved content before sending again.');

@@ -33,7 +33,7 @@ Run `npm test`. Tests cover structured content, manual JSON import, provider fai
 
 ## Push to DB through the live API
 
-Review & export → **Push to DB** sends the complete current package to the CMS endpoint `POST /api/game/publish`. The CMS forwards one JSON POST to the external ingestion API. Both localhost and Vercel support this connector. No demo database writes are performed by this button.
+Review & export → **Push to DB** sends the complete current package to the CMS endpoint `POST /api/publish-game`. The CMS forwards one JSON POST to the external ingestion API. Both localhost and Vercel support this connector. No demo database writes are performed by this button.
 
 On Vercel, set `GAME_API_URL` to the full ingestion route. Until overridden, the hosted connector uses the supplied base URL `https://kidsverse-apinew.vercel.app/api/v1/`. This address returned HTTP 404 in the live POST check on October 28, 2026: a working content ingestion route is still required. A successful deployment of the connector does not confirm ingestion.
 
