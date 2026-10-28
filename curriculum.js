@@ -37,11 +37,11 @@ function applyCurriculumMapping(mapping){
  $('objective').value=mapping?.objective||'';renderCurrent(true);
 }
 function restoreCurriculumMapping(){
- syncMappingControls();
+ const mapping=readSavedCurriculumMapping();if(mapping)applyCurriculumMapping(mapping);else syncMappingControls();
  $('status').textContent=current().name?'Mapping restored · save and open Content Studio':'Choose class, board and subject, then generate or import topics';
 }
 function changeCurriculumContext(){
- applyCurriculumMapping(null);
+ applyCurriculumMapping(readCurriculumContext(mappingContext()));
  $('status').textContent=current().name?'Saved mapping restored for this selection':'Selection saved · generate or import topics and concepts';
 }
 async function generateCurriculum(){

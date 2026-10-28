@@ -1,6 +1,13 @@
-node_modules/
 .env
+.env.txt
+node_modules/
+
+.vercel
+
+# Local credentials and editor recovery files
 .env.*
 !.env.example
-local-test-results/
-.vercel/
+*.swp
+*.swo
+*~
+.DS_Store

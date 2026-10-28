@@ -1,10 +1,8 @@
 import {storageStatus} from '../r2.mjs';
 import {generate, generateImage, importDraft, schemaFor} from '../server.mjs';
-import {gameConfig,publishGamePackage} from '../game-api.mjs';
-import {liveEnvironment,readLiveContent} from '../live-api.mjs';
+import {databaseRequest} from '../database.mjs';
 
 let active = false;
-const liveApiEnv=()=>liveEnvironment();
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -18,34 +16,27 @@ export default {
     const url = new URL(request.url);
     const {pathname} = url;
 
-    if(['/api/game/status','/api/publish-status'].includes(pathname)&&request.method==='GET'){
-      let configured=false;try{gameConfig(liveApiEnv());configured=true;}catch{}
-      return json(200,{configured});
-    }
-    if(['/api/game/publish','/api/publish-game'].includes(pathname)){
-      if(request.method!=='POST')return json(405,{error:'POST required'});
-      if(request.headers.get('origin')&&request.headers.get('origin')!==url.origin)return json(403,{error:'Origin not allowed.'});
-      if(!request.headers.get('content-type')?.startsWith('application/json'))return json(415,{error:'JSON required'});
-      if(active)return json(429,{error:'An operation is already in progress.'});
-      let input;
-      try{const raw=await request.text();if(Buffer.byteLength(raw)>2000000)return json(413,{error:'Package is too large.'});input=JSON.parse(raw);}
-      catch{return json(400,{error:'Invalid JSON package.'});}
-      active=true;
-      try{const result=await publishGamePackage(input,liveApiEnv());return json(result.status,result.body);}
-      finally{active=false;}
-    }
-
     if(request.method==='GET'&&pathname==='/api/manual-schema')return json(200,schemaFor(false));
     if (request.method === 'GET' && pathname === '/api/status') {
       return json(200, {configured: !!(process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL), imageConfigured: !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID), imageProvider: 'cloudflare', ...storageStatus()});
     }
 
-    if(pathname==='/api/live-content'){
-      if(request.method!=='GET')return json(405,{error:'GET required'});
-      const result=await readLiveContent(Object.fromEntries(url.searchParams));
-      return json(result.status,result.body);
+    if (pathname === '/api/curricula') {
+      if (request.method === 'GET') {
+        const result = await databaseRequest('GET', Object.fromEntries(url.searchParams));
+        return json(result.status, result.body);
+      }
+      if (request.method !== 'POST') return json(405, {error: 'GET or POST required'});
+      if (!request.headers.get('content-type')?.startsWith('application/json')) return json(415, {error: 'JSON required'});
+      try {
+        const raw = await request.text();
+        if (Buffer.byteLength(raw) > 2000000) return json(413, {error: 'Mapping is too large'});
+        const result = await databaseRequest('POST', null, JSON.parse(raw));
+        return json(result.status, result.body);
+      } catch {
+        return json(400, {error: 'Invalid JSON'});
+      }
     }
-    if(pathname==='/api/curricula')return json(410,{error:'Old database is disabled. Use the new API.'});
 
     if (!['/api/generate', '/api/curriculum', '/api/image', '/api/import'].includes(pathname)) return json(404, {error: 'Not found'});
     if (request.method !== 'POST') return json(405, {error: 'POST required'});

@@ -30,15 +30,3 @@ Images are hosted in R2 rather than embedded in the JSON. The local original-ima
 ## Verification
 
 Run `npm test`. Tests cover structured content, manual JSON import, provider failures, R2 uploads, all eighteen image slots, retrying empty slots, and restoring drafts. Provider requests in tests are mocked; live Gemini, Workers AI and R2 calls require configured credentials and have not been verified here.
-
-## New API only
-
-The CMS now uses only `https://kidsverse-apinew.vercel.app/api/v1/` for saved curriculum and content. Push to DB forwards a complete package to `admin/content/feed`. `/api/live-content?target=tree` forwards to `curriculum/tree`; target=packages forwards to `admin/content/packages`; target=package&id=UUID reads `admin/content/packages/UUID`. The reader allows only these fixed routes and forwards only supported filters. Secrets remain server-side.
-
-The original `/api/curricula` and local demo `/api/content/ingest` routes return 410. Neither publishing nor reading calls the original database. Earlier records have not been deleted. Existing DATABASE_URL credentials remain unchanged but are not used by active CMS routes.
-
-Browser mappings and studio drafts now use new storage keys. Old cached selections/drafts are ignored, not erased. Subject/class changes load the new API instead of restoring previous subject caches. API failures show explicitly and never load data from the old database. A complete generated curriculum cannot be independently saved because the backend has no bulk topic-create route; publish the selected concept with a complete content package.
-
-In Review & export, **Find saved packages** lists packages for the exact current class, board, subject, topic and concept. Select a package and click **Load from new API** to read lessons, alternate examples, question banks and hosted URLs into the editor. Replacing the editor asks for confirmation. The readback status identifies the new API and package ID. No generation or image calls are made during loading.
-
-The backend's confirmed routes returned HTTP 500 during the October 28 connection check. Those external errors must be fixed before curriculum and question readback can be demonstrated against live data; the CMS does not claim a successful remote save/read when that API fails.

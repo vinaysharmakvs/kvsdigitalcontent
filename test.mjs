@@ -22,6 +22,14 @@ test('Vercel status only reports image generation ready with Cloudflare credenti
   assert.equal(status.imageProvider,'cloudflare');
  }finally{for(const key of keys){if(previous[key]===undefined)delete process.env[key];else process.env[key]=previous[key];}}
 });
+test('Vercel handler exposes the curriculum database endpoint',async()=>{
+ const previous=process.env.DATABASE_URL;delete process.env.DATABASE_URL;
+ try{
+  const response=await vercelHandler.fetch(new Request('https://example.test/api/curricula?board=CBSE&grade=Grade%201&subject=Mathematics'));
+  assert.equal(response.status,503);
+  assert.match((await response.json()).error,/DATABASE_URL/);
+ }finally{if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;}
+});
 test('valid structured draft accepted',async()=>assert.equal((await generate(input,env,mock(fixture()))).status,200));
 test('valid learning-only draft accepted without question banks',async()=>{const d=fixture();for(const bank of ['cfu','test','battle','challenge'])delete d[bank];assert.equal((await generate({...input,learningOnly:true},env,mock(d))).status,200);});
 test('invalid answer rejected',async()=>{const d=fixture();d.test[0].answer='5';assert.equal((await generate(input,env,mock(d))).status,502);});
