@@ -31,7 +31,7 @@ test('Vercel handler exposes the curriculum database endpoint',async()=>{
  }finally{if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;}
 });
 test('content publisher posts the complete package to the configured feed',async()=>{
- const packagePayload={curriculum:{grade:'Grade 1'},concept:{name:'Computers'},content_type:'concept_package'};
+ const packagePayload={curriculum:{grade:'Grade 1'},concept:{name:'Computers'},content_type:'concept_package',learning_content:{teaching_method:'Show and tell'},learn_before_test:{required:true,steps:[{step_key:'understand'}]},check_for_understanding:[{question:'What is it?',novaFeedback:'Well done'}],test_questions:{one_time:false,questions:[]},battle_questions:[],challenge:{one_time:false,questions:[]}};
  let sent;
  const result=await publishContent(packagePayload,{CONTENT_FEED_API_URL:'https://content.example.test/feed'},async(url,options)=>{sent={url,options};return {ok:true,status:201,headers:{get:()=> 'application/json'},json:async()=>({message:'Created',id:'abc'})};});
  assert.equal(result.status,200);assert.equal(result.body.message,'Created');assert.equal(sent.url,'https://content.example.test/feed');assert.deepEqual(JSON.parse(sent.options.body),packagePayload);

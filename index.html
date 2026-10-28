@@ -174,7 +174,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
 
 <p class="context-banner" id="contentContext">Generate curriculum, then select a topic and concept.</p>
 <div class="provider-choices"><article class="provider-choice"><span class="provider-tag">Generate here</span><h3>Gemini draft</h3><p>Create the learning screens, questions and matching image briefs in one go.</p><button class="primary" id="generateBtn" type="button" onclick="generateContent(false)">Generate all content</button></article><article class="provider-choice chatgpt"><span class="provider-tag">Backup option</span><h3>Continue with ChatGPT</h3><p>Copy your prompt, paste the JSON response back, and fill the same editor.</p><button class="secondary" type="button" onclick="openManualDialog()">Get prompt / Add JSON</button></article></div><div style="margin-top:18px"><label for="objective">Learning objective</label><textarea id="objective" placeholder="One short sentence describing what the child should learn."></textarea><label for="instructions" style="margin-top:16px">Additional instructions (optional)</label><textarea id="instructions" placeholder="For example: use simple English and everyday Indian examples."></textarea>
-</div><div style="margin-top:16px"><label for="themeInterest">Theme / Interest for API (optional)</label><input id="themeInterest" placeholder="For example: Space, Sports, Animals"></div><label class="generate-visuals"><input id="autoVisuals" type="checkbox" checked><span><strong>Generate the matching pictures too</strong><small>When Workers AI and R2 are configured, the same click creates every lesson and question visual, uploads it to R2 and adds its public URL to the JSON.</small></span></label>
+</div><label class="generate-visuals"><input id="autoVisuals" type="checkbox" checked><span><strong>Generate the matching pictures too</strong><small>When Workers AI and R2 are configured, the same click creates every lesson and question visual, uploads it to R2 and adds its public URL to the JSON.</small></span></label>
 <div class="buttons"><button class="quiet-action" id="learningBtn" onclick="generateContent(true)">Regenerate learning only</button><button class="secondary" id="cancelVisualsBtn" type="button" onclick="cancelImageBatch()" style="display:none">Stop pictures after this one</button></div>
 <progress class="batch-progress" id="batchProgress" hidden max="18" value="0" aria-label="Image generation progress"></progress><p id="generationStatus" class="generation-status" role="status" aria-live="polite"></p>
 <div class="batch-actions"><button type="button" class="link-action" onclick="generateStandaloneImages(true)">Generate missing images</button><span>Keep existing pictures and retry empty slots.</span></div><p class="rule">Complete generation creates 3 learning screens, 2 more Example ways, their tiny checks, and Mission check, Test, Battle and Challenge banks. Learning-only regeneration preserves assessment questions.</p>
@@ -570,21 +570,6 @@ function buildPayload(){
   };
 }
 
-function buildContentFeedPayload(payload=buildPayload()){
-  const basicQuestion=question=>({question:question.question,options:question.options,answer:question.answer,difficulty:question.difficulty,explanation:question.explanation});
-  return {
-    curriculum:payload.curriculum,
-    concept:payload.concept,
-    theme_interest:$("themeInterest").value.trim()||'General',
-    content_type:'concept_package',
-    learning_content:{teaching_method:payload.learning_content.teaching_method,image_url:payload.learning_content.image_url,image_prompt:payload.learning_content.image_prompt,explanation:payload.learning_content.explanation,hints:payload.learning_content.hints,nova_script:payload.learning_content.nova_script,nova_feedback:payload.learning_content.nova_feedback},
-    check_for_understanding:payload.check_for_understanding.map(basicQuestion),
-    test_questions:{one_time:false,questions:payload.test_questions.questions.map(question=>({...basicQuestion(question),marks:Number(question.marks)||1}))},
-    battle_questions:payload.battle_questions.map(question=>({...basicQuestion(question),xp:Number(question.xp)||0})),
-    challenge:{one_time:false,questions:payload.challenge.questions.map(question=>({...basicQuestion(question),xp:Number(question.xp)||0,nova_feedback:question.novaFeedback||question.nova_feedback||''}))}
-  };
-}
-
 function previewVisual(url,brief,alt,generatedPreview){
   const src=imageSrc(url)||generatedPreview?.dataset.url||'';
   return `<div class="preview-illustration">${src?`<img src="${esc(src)}" alt="${esc(alt||brief||'Lesson illustration')}">`:`<span>Picture not added yet${brief?`<br><small>${esc(brief)}</small>`:''}</span>`}</div>`;
@@ -679,7 +664,7 @@ function savePackage(){
 }
 
 function clearAuthoring(){
-  ["objective","themeInterest","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).value="");
+  ["objective","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).value="");
   learningStepNames.forEach(name=>['Title','Text','Key','ImageUrl','ImagePrompt','Nova','Question','Options','Answer','Explanation'].forEach(field=>$('learn'+name+field).value=''));
   [1,2].forEach(index=>['Label','Text','Key','Nova','ImageUrl','ImageAlt','ImagePrompt','Question','Options','Answer','Explanation'].forEach(field=>$('exampleAlt'+index+field).value=''));
   questionData={cfu:[],test:[],battle:[],challenge:[]};
@@ -716,7 +701,7 @@ async function publishToApi(){
   $("saveStatus").style.display='inline-block';
   $("saveStatus").textContent='Publishing the reviewed package…';
   try{
-    const response=await fetch('/api/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildContentFeedPayload(payload)),signal:AbortSignal.timeout(35000)});
+    const response=await fetch('/api/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(35000)});
     const result=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(result.error||`Content API returned ${response.status}.`);
     $("saveStatus").textContent=result.message||'Content published successfully.';
@@ -760,7 +745,7 @@ $("concept").addEventListener("change",()=>{
   $("activeMeta").textContent=`${$("grade").value} · ${$("board").value} · ${$("subject").value} · ${$("topic").value}`;
   updatePayload();
 });
-["objective","themeInterest","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).addEventListener("input",updatePayload));
+["objective","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).addEventListener("input",updatePayload));
 learningStepNames.forEach(name=>['Title','Text','Key','ImageUrl','ImagePrompt','Nova','Question','Options','Answer','Explanation'].forEach(field=>$('learn'+name+field).addEventListener('input',updatePayload)));
 
 renderExampleAlternatives();
