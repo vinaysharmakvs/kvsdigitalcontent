@@ -174,7 +174,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
 
 <p class="context-banner" id="contentContext">Generate curriculum, then select a topic and concept.</p>
 <div class="provider-choices"><article class="provider-choice"><span class="provider-tag">Generate here</span><h3>Gemini draft</h3><p>Create the learning screens, questions and matching image briefs in one go.</p><button class="primary" id="generateBtn" type="button" onclick="generateContent(false)">Generate all content</button></article><article class="provider-choice chatgpt"><span class="provider-tag">Backup option</span><h3>Continue with ChatGPT</h3><p>Copy your prompt, paste the JSON response back, and fill the same editor.</p><button class="secondary" type="button" onclick="openManualDialog()">Get prompt / Add JSON</button></article></div><div style="margin-top:18px"><label for="objective">Learning objective</label><textarea id="objective" placeholder="One short sentence describing what the child should learn."></textarea><label for="instructions" style="margin-top:16px">Additional instructions (optional)</label><textarea id="instructions" placeholder="For example: use simple English and everyday Indian examples."></textarea>
-</div><label class="generate-visuals"><input id="autoVisuals" type="checkbox" checked><span><strong>Generate the matching pictures too</strong><small>When Workers AI and R2 are configured, the same click creates every lesson and question visual, uploads it to R2 and adds its public URL to the JSON.</small></span></label>
+</div><div style="margin-top:16px"><label for="themeInterest">Theme / Interest for API (optional)</label><input id="themeInterest" placeholder="For example: Space, Sports, Animals"></div><label class="generate-visuals"><input id="autoVisuals" type="checkbox" checked><span><strong>Generate the matching pictures too</strong><small>When Workers AI and R2 are configured, the same click creates every lesson and question visual, uploads it to R2 and adds its public URL to the JSON.</small></span></label>
 <div class="buttons"><button class="quiet-action" id="learningBtn" onclick="generateContent(true)">Regenerate learning only</button><button class="secondary" id="cancelVisualsBtn" type="button" onclick="cancelImageBatch()" style="display:none">Stop pictures after this one</button></div>
 <progress class="batch-progress" id="batchProgress" hidden max="18" value="0" aria-label="Image generation progress"></progress><p id="generationStatus" class="generation-status" role="status" aria-live="polite"></p>
 <div class="batch-actions"><button type="button" class="link-action" onclick="generateStandaloneImages(true)">Generate missing images</button><span>Keep existing pictures and retry empty slots.</span></div><p class="rule">Complete generation creates 3 learning screens, 2 more Example ways, their tiny checks, and Mission check, Test, Battle and Challenge banks. Learning-only regeneration preserves assessment questions.</p>
@@ -312,7 +312,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
       </div>
       <div class="buttons">
         <button class="primary" onclick="savePackage()">Download Complete Package</button>
-        <button class="primary" id="publishApiBtn" onclick="publishToApi()">Call API</button>
+        <button class="primary" id="publishApiBtn" onclick="publishToApi()" disabled>Call API</button>
         <button class="danger" onclick="resetDraft()">Clear draft</button>
         <button class="secondary" onclick="copyPayload()">Copy Payload</button>
       </div>
@@ -570,6 +570,21 @@ function buildPayload(){
   };
 }
 
+function buildContentFeedPayload(payload=buildPayload()){
+  const basicQuestion=question=>({question:question.question,options:question.options,answer:question.answer,difficulty:question.difficulty,explanation:question.explanation});
+  return {
+    curriculum:payload.curriculum,
+    concept:payload.concept,
+    theme_interest:$("themeInterest").value.trim()||'General',
+    content_type:'concept_package',
+    learning_content:{teaching_method:payload.learning_content.teaching_method,image_url:payload.learning_content.image_url,image_prompt:payload.learning_content.image_prompt,explanation:payload.learning_content.explanation,hints:payload.learning_content.hints,nova_script:payload.learning_content.nova_script,nova_feedback:payload.learning_content.nova_feedback},
+    check_for_understanding:payload.check_for_understanding.map(basicQuestion),
+    test_questions:{one_time:false,questions:payload.test_questions.questions.map(question=>({...basicQuestion(question),marks:Number(question.marks)||1}))},
+    battle_questions:payload.battle_questions.map(question=>({...basicQuestion(question),xp:Number(question.xp)||0})),
+    challenge:{one_time:false,questions:payload.challenge.questions.map(question=>({...basicQuestion(question),xp:Number(question.xp)||0,nova_feedback:question.novaFeedback||question.nova_feedback||''}))}
+  };
+}
+
 function previewVisual(url,brief,alt,generatedPreview){
   const src=imageSrc(url)||generatedPreview?.dataset.url||'';
   return `<div class="preview-illustration">${src?`<img src="${esc(src)}" alt="${esc(alt||brief||'Lesson illustration')}">`:`<span>Picture not added yet${brief?`<br><small>${esc(brief)}</small>`:''}</span>`}</div>`;
@@ -607,11 +622,15 @@ function renderChildPreview(){
   $('previewCaption').textContent='Package coverage at a glance';
   target.innerHTML=`<div class="preview-screen"><div class="preview-content"><span class="preview-kicker">Package coverage</span><h3>${esc(payload.concept.name||'Untitled concept')}</h3><p>${esc(payload.curriculum.grade)} · ${esc(payload.curriculum.subject)} · ${esc(payload.curriculum.topic)}</p><div class="preview-idea"><b>3 learning steps</b><br>Understand → Example with 3 ways → Remember</div><div class="preview-count"><span>Mission check</span><strong>${payload.check_for_understanding.length}</strong></div><div class="preview-count"><span>Test</span><strong>${payload.test_questions.questions.length}</strong></div><div class="preview-count"><span>Battle</span><strong>${payload.battle_questions.length}</strong></div><div class="preview-count"><span>Challenge</span><strong>${payload.challenge.questions.length}</strong></div><div class="preview-warning">Download saves a JSON package for CMS review. Embedded pictures are not hosted. A production content API and game connection are future work.</div></div></div>`;
 }
-function renderReviewChecklist(payload){
+function reviewReadiness(payload){
   const banks=[payload.check_for_understanding,payload.test_questions.questions,payload.battle_questions,payload.challenge.questions];
   const allQuestions=banks.flat();
-  const rows=[['Curriculum mapped',!!payload.concept.name&&!!payload.concept.learning_objective],['Learning screens complete',payload.learn_before_test.steps.every(step=>step.title&&step.teaching_text&&step.mini_question.question&&step.mini_question.explanation)],['Three Example ways',payload.learn_before_test.steps[1].explanation_ways.every(way=>way.label&&way.teaching_text&&way.mini_question.question&&way.mini_question.explanation)],['Learning visuals present',[payload.learning_content,...payload.learn_before_test.steps,...payload.learn_before_test.steps[1].explanation_ways].every(item=>!!imageSrc(item.image_url))],['All four question banks filled',banks.every(bank=>bank.length>0)],['Question explanations, hints and Nova',allQuestions.length>0&&allQuestions.every(q=>q.explanation&&q.nova_script&&Array.isArray(q.hints)&&q.hints.length===3)],['Assessment visuals present',allQuestions.length>0&&allQuestions.every(q=>!!imageSrc(q.image_url))]];
+  return [['Curriculum mapped',!!payload.concept.name&&!!payload.concept.learning_objective],['Learning screens complete',payload.learn_before_test.steps.every(step=>step.title&&step.teaching_text&&step.mini_question.question&&step.mini_question.explanation)],['Three Example ways',payload.learn_before_test.steps[1].explanation_ways.every(way=>way.label&&way.teaching_text&&way.mini_question.question&&way.mini_question.explanation)],['Learning visuals present',[payload.learning_content,...payload.learn_before_test.steps,...payload.learn_before_test.steps[1].explanation_ways].every(item=>!!imageSrc(item.image_url))],['All four question banks filled',banks.every(bank=>bank.length>0)],['Question explanations, hints and Nova',allQuestions.length>0&&allQuestions.every(q=>q.explanation&&q.nova_script&&Array.isArray(q.hints)&&q.hints.length===3)],['Assessment visuals present',allQuestions.length>0&&allQuestions.every(q=>!!imageSrc(q.image_url))]];
+}
+function renderReviewChecklist(payload){
+  const rows=reviewReadiness(payload);
   $('reviewChecklist').innerHTML=rows.map(([label,ready])=>`<div class="review-item"><span>${esc(label)}</span><strong>${ready?'Ready':'Needs work'}</strong></div>`).join('');
+  const button=$('publishApiBtn');if(button&&!button.dataset.busy)button.disabled=!rows.every(([,ready])=>ready);
 }
 
 function updatePayload(){
@@ -660,7 +679,7 @@ function savePackage(){
 }
 
 function clearAuthoring(){
-  ["objective","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).value="");
+  ["objective","themeInterest","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).value="");
   learningStepNames.forEach(name=>['Title','Text','Key','ImageUrl','ImagePrompt','Nova','Question','Options','Answer','Explanation'].forEach(field=>$('learn'+name+field).value=''));
   [1,2].forEach(index=>['Label','Text','Key','Nova','ImageUrl','ImageAlt','ImagePrompt','Question','Options','Answer','Explanation'].forEach(field=>$('exampleAlt'+index+field).value=''));
   questionData={cfu:[],test:[],battle:[],challenge:[]};
@@ -686,15 +705,18 @@ function copyPayload(){
 async function publishToApi(){
   const button=$("publishApiBtn");
   const payload=buildPayload();
-  if(!payload.concept.name?.trim()||!payload.concept.learning_objective?.trim()){
-    showToast('Complete the curriculum and learning objective before calling the API.');
+  const incomplete=reviewReadiness(payload).filter(([,ready])=>!ready).map(([label])=>label);
+  if(incomplete.length){
+    $("saveStatus").style.display='inline-block';
+    $("saveStatus").textContent='Complete before publishing: '+incomplete.join(', ')+'.';
+    showToast('Complete every review check before calling the API.');
     return;
   }
-  button.disabled=true;button.textContent='Calling API…';
+  button.dataset.busy='true';button.disabled=true;button.textContent='Calling API…';
   $("saveStatus").style.display='inline-block';
   $("saveStatus").textContent='Publishing the reviewed package…';
   try{
-    const response=await fetch('/api/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(35000)});
+    const response=await fetch('/api/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildContentFeedPayload(payload)),signal:AbortSignal.timeout(35000)});
     const result=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(result.error||`Content API returned ${response.status}.`);
     $("saveStatus").textContent=result.message||'Content published successfully.';
@@ -702,7 +724,7 @@ async function publishToApi(){
   }catch(error){
     $("saveStatus").textContent=error.name==='TimeoutError'?'Content API timed out. Your draft is unchanged.':error.message||'Could not publish. Your draft is unchanged.';
     showToast('API call failed. Your draft is unchanged.');
-  }finally{button.disabled=false;button.textContent='Call API';}
+  }finally{delete button.dataset.busy;button.textContent='Call API';renderReviewChecklist(buildPayload());}
 }
 
 function showToast(message){
@@ -738,7 +760,7 @@ $("concept").addEventListener("change",()=>{
   $("activeMeta").textContent=`${$("grade").value} · ${$("board").value} · ${$("subject").value} · ${$("topic").value}`;
   updatePayload();
 });
-["objective","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).addEventListener("input",updatePayload));
+["objective","themeInterest","method","imageUrl","imagePrompt","explanation","hint1","hint2","hint3","nova","novaFeedback"].forEach(id=>$(id).addEventListener("input",updatePayload));
 learningStepNames.forEach(name=>['Title','Text','Key','ImageUrl','ImagePrompt','Nova','Question','Options','Answer','Explanation'].forEach(field=>$('learn'+name+field).addEventListener('input',updatePayload)));
 
 renderExampleAlternatives();
