@@ -229,10 +229,16 @@ async function sendToGame(){
  if(snapshot===lastGamePublishedJson){status.textContent='This package was already sent successfully. Edit the content before sending another version.';return;}
  gamePublishBusy=true;operationBusy=true;button.disabled=true;button.textContent='Sending…';button.setAttribute('aria-busy','true');
  const footerButton=document.getElementById('footerPushDb');if(footerButton){footerButton.disabled=true;footerButton.textContent='Sending…';footerButton.setAttribute('aria-busy','true');}
- status.textContent='Saving the selected curriculum and complete content package to the database…';
+ status.textContent='Saving the complete package to both databases…';
  try{
   const response=await fetch('/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json'},body:snapshot,signal:AbortSignal.timeout(55000)});
   let result;try{result=await response.json();}catch{throw Error('Publishing is available from the local CMS. No readable confirmation received; check saved content before sending again.');}
+  if(result.targets){
+   const describe=(key,label)=>{const target=result.targets[key];return label+': '+(target?.saved?'Saved · Package '+target.data?.package_id+' · '+(target.data?.questions_saved?.total??0)+' questions':target?.error||'No confirmation');};
+   status.textContent=describe('original','Original DB')+' | '+describe('live','Live API DB');
+   if(result.targets.original?.saved&&result.targets.live?.saved)lastGamePublishedJson=snapshot;
+   return;
+  }
   if(!response.ok)throw Error(result.error||'The database API did not confirm this package.');
   if(result.status!=='success'||!result.data?.package_id)throw Error('No package confirmation received. Check saved content before sending again.');
   lastGamePublishedJson=snapshot;

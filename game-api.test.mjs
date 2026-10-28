@@ -23,11 +23,26 @@ test('Vercel forwarding validates requests and sends the full package to live AP
  delete process.env.GAME_API_URL;
  let calls=0;
  try{
-  globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://kidsverse-apinew.vercel.app/api/v1/');assert.equal(options.method,'POST');assert.deepEqual(JSON.parse(options.body),fixture());return Response.json({status:'success',data:{package_id:'live-test'}},{status:201});};
+  globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed');assert.equal(options.method,'POST');assert.deepEqual(JSON.parse(options.body),fixture());return Response.json({status:'success',data:{package_id:'live-test'}},{status:201});};
   const request=body=>new Request('https://kvsdigitalcontent.vercel.app/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://kvsdigitalcontent.vercel.app'},body:JSON.stringify(body)});
   assert.equal((await handler.fetch(request({}))).status,400);assert.equal(calls,0);
-  const response=await handler.fetch(request(fixture()));assert.equal(response.status,201);assert.equal((await response.json()).data.package_id,'live-test');assert.equal(calls,1);
+  const response=await handler.fetch(request(fixture()));assert.equal(response.status,207);const body=await response.json();assert.equal(body.targets.live.data.package_id,'live-test');assert.equal(body.targets.original.saved,false);assert.equal(calls,1);
   const crossOrigin=new Request('https://kvsdigitalcontent.vercel.app/api/publish-game',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://other.example'},body:JSON.stringify(fixture())});
   assert.equal((await handler.fetch(crossOrigin)).status,403);assert.equal(calls,1);
  }finally{globalThis.fetch=originalFetch;if(originalUrl===undefined)delete process.env.GAME_API_URL;else process.env.GAME_API_URL=originalUrl;}
+});
+
+
+test('dual publishing reports each destination, including partial and thrown failures',async()=>{
+ const {publishBoth,liveEnvironment}=await import('./dual-publish.mjs');
+ const ok=id=>({status:201,body:{status:'success',data:{package_id:id}}});
+ let liveCalls=0;
+ const result=await publishBoth(fixture(),{},async()=>ok('old'),async(p,env)=>{liveCalls++;assert.deepEqual(p,fixture());assert.match(env.GAME_API_URL,/admin\/content\/feed$/);return ok('new');});
+ assert.equal(result.status,201);assert.equal(result.body.targets.original.data.package_id,'old');assert.equal(result.body.targets.live.data.package_id,'new');assert.equal(liveCalls,1);
+ const partial=await publishBoth(fixture(),{},async()=>ok('old'),async()=>({status:502,body:{error:'Live API returned 500'}}));
+ assert.equal(partial.status,207);assert.equal(partial.body.status,'partial');assert.equal(partial.body.targets.original.saved,true);assert.equal(partial.body.targets.live.saved,false);
+ const thrown=await publishBoth(fixture(),{},async()=>{throw Error('secret');},async()=>ok('new'));
+ assert.equal(thrown.body.targets.original.saved,false);assert.equal(thrown.body.targets.live.saved,true);assert.ok(!JSON.stringify(thrown).includes('secret'));
+ assert.equal(liveEnvironment({GAME_API_URL:'https://kidsverse-apinew.vercel.app/api/v1/'}).GAME_API_URL,'https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed');
+ let calls=0;assert.equal((await publishBoth({}, {},async()=>{calls++;},async()=>{calls++;})).status,400);assert.equal(calls,0);
 });

@@ -1,4 +1,5 @@
-import {publishGamePackage, gameConfig} from './game-api.mjs';
+import {gameConfig} from './game-api.mjs';
+import {publishBoth,liveEnvironment} from './dual-publish.mjs';
 import {ingestContent} from './content-ingestion.mjs';
 import {databaseRequest} from './database.mjs';
 import http from 'node:http';
@@ -157,7 +158,7 @@ export function createServer(){
  if(req.headers.origin&&req.headers.origin!=='http://'+req.headers.host)return send(403,{error:'Origin not allowed.'});
  if(req.method==='GET'&&['/studio.css','/workflow.js','/mapping.js','/curriculum.js','/curriculum-db.js'].includes(pathname)){res.writeHead(200,{'Content-Type':pathname.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(await readFile(new URL('.'+pathname,import.meta.url)));}
  if(['/api/game/status','/api/publish-status'].includes(pathname)&&req.method==='GET'){
-  let configured=false;try{gameConfig();configured=true;}catch{}
+  let configured=false;try{gameConfig(liveEnvironment());configured=true;}catch{}
   return send(200,{configured});
  }
  if(['/api/game/publish','/api/publish-game'].includes(pathname)||pathname==='/api/content/ingest'){
@@ -165,7 +166,7 @@ export function createServer(){
   if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'JSON required'});
   if(active)return send(429,{error:'An operation is already in progress.'});
   let raw='';try{for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>2000000)return send(413,{error:'Package is too large.'});}
-   const input=JSON.parse(raw);active=true;try{const result=pathname==='/api/content/ingest'?await ingestContent(input):await publishGamePackage(input);return send(result.status,result.body);}finally{active=false;}
+   const input=JSON.parse(raw);active=true;try{const result=pathname==='/api/content/ingest'?await ingestContent(input):await publishBoth(input);return send(result.status,result.body);}finally{active=false;}
   }catch{return send(400,{error:'Invalid JSON package.'});}
  }
  if(pathname==='/api/curricula'){

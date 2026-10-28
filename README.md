@@ -31,14 +31,18 @@ Images are hosted in R2 rather than embedded in the JSON. The local original-ima
 
 Run `npm test`. Tests cover structured content, manual JSON import, provider failures, R2 uploads, all eighteen image slots, retrying empty slots, and restoring drafts. Provider requests in tests are mocked; live Gemini, Workers AI and R2 calls require configured credentials and have not been verified here.
 
-## Push to DB through the live API
+## Push to DB: both destinations
 
-Review & export → **Push to DB** sends the complete current package to the CMS endpoint `POST /api/publish-game`. The CMS forwards one JSON POST to the external ingestion API. Both localhost and Vercel support this connector. No demo database writes are performed by this button.
+Review & export → **Push to DB** makes one CMS request to `POST /api/publish-game`. The server validates the complete package, saves it to the original DATABASE_URL database's separate cms_content tables, and forwards it to the real external route `https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed`. GAME_API_URL can override this route; the previously supplied /api/v1/ base is normalized to the confirmed feed route. Optional GAME_API_TOKEN remains server-only.
 
-On Vercel, set `GAME_API_URL` to the full ingestion route. Until overridden, the hosted connector uses the supplied base URL `https://kidsverse-apinew.vercel.app/api/v1/`. This address returned HTTP 404 in the live POST check on October 28, 2026: a working content ingestion route is still required. A successful deployment of the connector does not confirm ingestion.
+Each destination returns its own saved status, package IDs and question counts. HTTP 201 means both confirmed success; HTTP 207 means at least one destination did not confirm. The UI shows both results and only marks the complete request successful when both saved. Writes are not automatically retried. If a remote failure or timeout occurs, check that database before manually retrying. Two independent databases do not share a transaction; partial success is possible.
 
-If Bearer authentication is required, set `GAME_API_TOKEN` in the CMS environment. Credentials stay on the server. The connector does not automatically retry writes and never falls back to the demo database. Success requires JSON `status: "success"` and `data.package_id`; the UI displays the package ID and saved question count. API 404 and authentication failures are reported explicitly.
+On October 28, 2026 the live feed accepted OPTIONS (200, POST allowed), but a full POST returned HTTP 500. Its curriculum/tree and curriculums GET routes also returned 500. These are external backend failures, not a missing CMS endpoint. No live remote success is claimed.
+
+## Curriculum mapping scope
+
+The existing /api/curricula API and kidsverse tables continue to store complete versioned mappings. Push to DB includes the selected board, grade, subject, topic, concept and objective in both content packages. The external repository exposes curriculum/tree for reading and a full content feed for writing, but no bulk curriculum/topic create route. Saving an entire generated mapping to the second database independently of lessons still requires an appropriate backend endpoint. Empty placeholder packages are never sent, because the backend publishes packages and replaces their existing questions.
 
 ## Local database demo
 
-The separate local-only `/api/content/ingest` route remains available for the earlier demo. It stores related content records in the `cms_content` schema using `DATABASE_URL`, preserving existing `kidsverse` curriculum tables. It is not exposed by the Vercel handler and is no longer connected to Push to DB. Its earlier saved test records remain in the database.
+The separate local-only /api/content/ingest route remains available for the earlier demo. It uses DATABASE_URL and cms_content relational tables, without changing existing kidsverse curriculum tables. The direct demo route is not exposed by Vercel; the dual publishing service uses the same persistence function for the original destination. Earlier test records remain preserved.

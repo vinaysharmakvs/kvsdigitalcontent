@@ -312,7 +312,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
       </div>
       <div class="buttons">
         <button class="primary" onclick="savePackage()">Download Complete Package</button>
-        <button class="secondary" id="sendGameBtn" onclick="sendToGame()">Save content to database</button>
+        <button class="secondary" id="sendGameBtn" onclick="sendToGame()">Save to both databases</button>
         <button class="danger" onclick="resetDraft()">Clear draft</button>
         <button class="secondary" onclick="copyPayload()">Copy Payload</button>
       </div>
@@ -606,7 +606,7 @@ function renderChildPreview(){
     return;
   }
   $('previewCaption').textContent='Package coverage at a glance';
-  target.innerHTML=`<div class="preview-screen"><div class="preview-content"><span class="preview-kicker">Package coverage</span><h3>${esc(payload.concept.name||'Untitled concept')}</h3><p>${esc(payload.curriculum.grade)} · ${esc(payload.curriculum.subject)} · ${esc(payload.curriculum.topic)}</p><div class="preview-idea"><b>3 learning steps</b><br>Understand → Example with 3 ways → Remember</div><div class="preview-count"><span>Mission check</span><strong>${payload.check_for_understanding.length}</strong></div><div class="preview-count"><span>Test</span><strong>${payload.test_questions.questions.length}</strong></div><div class="preview-count"><span>Battle</span><strong>${payload.battle_questions.length}</strong></div><div class="preview-count"><span>Challenge</span><strong>${payload.challenge.questions.length}</strong></div><div class="preview-warning">Download a JSON package, or use Save content to database from the local CMS after reviewing the content and hosted pictures.</div></div></div>`;
+  target.innerHTML=`<div class="preview-screen"><div class="preview-content"><span class="preview-kicker">Package coverage</span><h3>${esc(payload.concept.name||'Untitled concept')}</h3><p>${esc(payload.curriculum.grade)} · ${esc(payload.curriculum.subject)} · ${esc(payload.curriculum.topic)}</p><div class="preview-idea"><b>3 learning steps</b><br>Understand → Example with 3 ways → Remember</div><div class="preview-count"><span>Mission check</span><strong>${payload.check_for_understanding.length}</strong></div><div class="preview-count"><span>Test</span><strong>${payload.test_questions.questions.length}</strong></div><div class="preview-count"><span>Battle</span><strong>${payload.battle_questions.length}</strong></div><div class="preview-count"><span>Challenge</span><strong>${payload.challenge.questions.length}</strong></div><div class="preview-warning">Download a JSON package, or use Save to both databases from the local CMS after reviewing the content and hosted pictures.</div></div></div>`;
 }
 function renderReviewChecklist(payload){
   const banks=[payload.check_for_understanding,payload.test_questions.questions,payload.battle_questions,payload.challenge.questions];
@@ -867,5 +867,5 @@ async function generateCurriculum(){
 }
 checkSetup();
 </script>
-<script src="/workflow.js?v=live-api-6"></script></body>
+<script src="/workflow.js?v=dual-db-7"></script></body>
 </html>

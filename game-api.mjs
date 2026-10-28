@@ -39,6 +39,7 @@ export async function publishGamePackage(input,env=process.env,fetcher=fetch){
     if(env.GAME_API_TOKEN)headers.Authorization='Bearer '+env.GAME_API_TOKEN;
     // Never retry writes automatically: the game may have saved a timed-out request.
     const response=await fetcher(url,{method:'POST',headers,body:JSON.stringify(input),redirect:'error',signal:AbortSignal.timeout(45000)});
+    if(response.status>=500)return {status:502,body:{error:'Live API returned HTTP '+response.status+': its backend could not save the package. Check the API server and database; do not retry until checked.'}};
     if(response.status===404)return {status:502,body:{error:'Live API returned HTTP 404: the configured URL is not a content ingestion endpoint. Check the full API route.'}};
     if(response.status===401||response.status===403)return {status:502,body:{error:'Live API rejected authentication (HTTP '+response.status+'). Check the required credentials.'}};
     let body;try{body=await response.json();}catch{return {status:502,body:{error:'Live API returned a non-JSON response (HTTP '+response.status+'). Check the endpoint and saved content before sending again.'}};}

@@ -1,10 +1,11 @@
 import {storageStatus} from '../r2.mjs';
 import {generate, generateImage, importDraft, schemaFor} from '../server.mjs';
 import {databaseRequest} from '../database.mjs';
-import {publishGamePackage,gameConfig} from '../game-api.mjs';
+import {gameConfig} from '../game-api.mjs';
+import {publishBoth,liveEnvironment} from '../dual-publish.mjs';
 
 let active = false;
-const liveApiEnv=()=>({...process.env,GAME_API_URL:process.env.GAME_API_URL||'https://kidsverse-apinew.vercel.app/api/v1/'});
+const liveApiEnv=()=>liveEnvironment();
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -31,7 +32,7 @@ export default {
       try{const raw=await request.text();if(Buffer.byteLength(raw)>2000000)return json(413,{error:'Package is too large.'});input=JSON.parse(raw);}
       catch{return json(400,{error:'Invalid JSON package.'});}
       active=true;
-      try{const result=await publishGamePackage(input,liveApiEnv());return json(result.status,result.body);}
+      try{const result=await publishBoth(input,liveApiEnv());return json(result.status,result.body);}
       finally{active=false;}
     }
 
