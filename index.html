@@ -312,7 +312,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
       </div>
       <div class="buttons">
         <button class="primary" onclick="savePackage()">Download Complete Package</button>
-        <button class="primary" id="publishApiBtn" onclick="publishToApi()" disabled>Call API</button>
+        <button class="primary" id="publishApiBtn" onclick="publishToApi()">Call API</button>
         <button class="danger" onclick="resetDraft()">Clear draft</button>
         <button class="secondary" onclick="copyPayload()">Copy Payload</button>
       </div>
@@ -615,7 +615,7 @@ function reviewReadiness(payload){
 function renderReviewChecklist(payload){
   const rows=reviewReadiness(payload);
   $('reviewChecklist').innerHTML=rows.map(([label,ready])=>`<div class="review-item"><span>${esc(label)}</span><strong>${ready?'Ready':'Needs work'}</strong></div>`).join('');
-  const button=$('publishApiBtn');if(button&&!button.dataset.busy)button.disabled=!rows.every(([,ready])=>ready);
+  const button=$('publishApiBtn');if(button&&!button.dataset.busy)button.disabled=false;
 }
 
 function updatePayload(){

@@ -195,8 +195,9 @@ test('missing-image retry preserves existing URLs and generates only empty slots
  assert.equal(questionData.test[0].image_url,'https://images.example.com/test.jpg');
 });
 
-test('content API button is gated and sends the complete reviewed package unchanged',()=>{
- assert.match(html,/id="publishApiBtn"[^>]*disabled/);
+test('content API button validates readiness on click and sends the complete reviewed package unchanged',()=>{
+ assert.match(html,/id="publishApiBtn" onclick="publishToApi\(\)"/);
+ assert.doesNotMatch(html,/id="publishApiBtn"[^>]*disabled/);
  assert.match(html,/reviewReadiness\(payload\)\.filter/);
  assert.match(html,/body:JSON\.stringify\(payload\)/);
  assert.doesNotMatch(html,/function buildContentFeedPayload\(/);
