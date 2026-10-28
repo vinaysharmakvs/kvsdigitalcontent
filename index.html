@@ -312,6 +312,7 @@ body[data-learn-step="example"] .alternative-section{display:block}
       </div>
       <div class="buttons">
         <button class="primary" onclick="savePackage()">Download Complete Package</button>
+        <button class="primary" id="publishApiBtn" onclick="publishToApi()">Call API</button>
         <button class="danger" onclick="resetDraft()">Clear draft</button>
         <button class="secondary" onclick="copyPayload()">Copy Payload</button>
       </div>
@@ -680,6 +681,28 @@ function copyPayload(){
     navigator.clipboard.writeText(text);
     showToast("Payload copied.");
   }else showToast("Copy is not available in this browser.");
+}
+
+async function publishToApi(){
+  const button=$("publishApiBtn");
+  const payload=buildPayload();
+  if(!payload.concept.name?.trim()||!payload.concept.learning_objective?.trim()){
+    showToast('Complete the curriculum and learning objective before calling the API.');
+    return;
+  }
+  button.disabled=true;button.textContent='Calling API…';
+  $("saveStatus").style.display='inline-block';
+  $("saveStatus").textContent='Publishing the reviewed package…';
+  try{
+    const response=await fetch('/api/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(35000)});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(result.error||`Content API returned ${response.status}.`);
+    $("saveStatus").textContent=result.message||'Content published successfully.';
+    showToast('Content published successfully.');
+  }catch(error){
+    $("saveStatus").textContent=error.name==='TimeoutError'?'Content API timed out. Your draft is unchanged.':error.message||'Could not publish. Your draft is unchanged.';
+    showToast('API call failed. Your draft is unchanged.');
+  }finally{button.disabled=false;button.textContent='Call API';}
 }
 
 function showToast(message){

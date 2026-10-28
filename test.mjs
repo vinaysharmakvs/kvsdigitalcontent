@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {generate,generateImage,schemaFor,fetchGemini,importDraft} from './server.mjs';
+import {generate,generateImage,schemaFor,fetchGemini,importDraft,publishContent} from './server.mjs';
 import vercelHandler from './api/[...path].mjs';
 const input={curriculum:{grade:'Grade 1',board:'CBSE',subject:'Mathematics',topic:'Fractions'},concept:{name:'Equal Parts',learning_objective:''},instructions:'',learningOnly:false};
 const env={GEMINI_API_KEY:'test-only',GEMINI_MODEL:'test-model'};
@@ -29,6 +29,16 @@ test('Vercel handler exposes the curriculum database endpoint',async()=>{
   assert.equal(response.status,503);
   assert.match((await response.json()).error,/DATABASE_URL/);
  }finally{if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;}
+});
+test('content publisher posts the complete package to the configured feed',async()=>{
+ const packagePayload={curriculum:{grade:'Grade 1'},concept:{name:'Computers'},content_type:'concept_package'};
+ let sent;
+ const result=await publishContent(packagePayload,{CONTENT_FEED_API_URL:'https://content.example.test/feed'},async(url,options)=>{sent={url,options};return {ok:true,status:201,headers:{get:()=> 'application/json'},json:async()=>({message:'Created',id:'abc'})};});
+ assert.equal(result.status,200);assert.equal(result.body.message,'Created');assert.equal(sent.url,'https://content.example.test/feed');assert.deepEqual(JSON.parse(sent.options.body),packagePayload);
+});
+test('content publisher keeps upstream errors concise',async()=>{
+ const result=await publishContent({curriculum:{},concept:{},content_type:'concept_package'},{},async()=>({ok:false,status:422,headers:{get:()=> 'application/json'},json:async()=>({message:'Invalid package'})}));
+ assert.equal(result.status,422);assert.equal(result.body.error,'Invalid package');
 });
 test('valid structured draft accepted',async()=>assert.equal((await generate(input,env,mock(fixture()))).status,200));
 test('valid learning-only draft accepted without question banks',async()=>{const d=fixture();for(const bank of ['cfu','test','battle','challenge'])delete d[bank];assert.equal((await generate({...input,learningOnly:true},env,mock(d))).status,200);});

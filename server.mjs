@@ -100,6 +100,19 @@ export function importDraft(input){
   return {status:200,body:input};
  }catch(error){return {status:400,body:{error:'Invalid ChatGPT JSON: '+error.message+'. Use the complete schema in the copied prompt. Your current draft is unchanged.'}};}
 }
+export async function publishContent(input,env=process.env,fetcher=fetch){
+ if(!input||typeof input!=='object'||Array.isArray(input)||!input.curriculum||!input.concept||input.content_type!=='concept_package')return {status:400,body:{error:'The content package is incomplete. Review the curriculum and concept before publishing.'}};
+ const endpoint=env.CONTENT_FEED_API_URL||'https://kidsverse-apinew.vercel.app/api/v1/admin/content/feed';
+ const headers={'Content-Type':'application/json'};
+ if(env.CONTENT_FEED_API_TOKEN)headers.Authorization='Bearer '+env.CONTENT_FEED_API_TOKEN;
+ try{
+  const response=await fetcher(endpoint,{method:'POST',headers,body:JSON.stringify(input),signal:AbortSignal.timeout(30000)});
+  const responseType=response.headers?.get?.('content-type')||'';
+  const result=responseType.includes('application/json')?await response.json():{message:(await response.text()).slice(0,500)};
+  if(!response.ok)return {status:response.status>=400&&response.status<500?response.status:502,body:{error:result?.message||result?.error||`Content API returned ${response.status}. Your draft is unchanged.`}};
+  return {status:200,body:{message:result?.message||'Content published successfully.',result}};
+ }catch(error){return {status:502,body:{error:error.name==='TimeoutError'?'Content API timed out. Your draft is unchanged.':'Could not reach the content API. Your draft is unchanged.'}};}
+}
 export async function generate(input,env=process.env,fetcher=fetch,mode='content',attempt=0){
  if(!env.GEMINI_API_KEY) return {status:503,body:{error:'Add GEMINI_API_KEY to the server .env file and restart.'}};
  if(!env.GEMINI_MODEL) return {status:503,body:{error:'Set GEMINI_MODEL in the server .env file.'}};
@@ -163,11 +176,11 @@ export function createServer(){
  if(req.method==='GET'&&pathname==='/api/manual-schema')return send(200,schemaFor(false));
  if(req.method==='GET'&&pathname==='/api/status'){const cloudflare=!!(process.env.CLOUDFLARE_API_TOKEN&&process.env.CLOUDFLARE_ACCOUNT_ID);return send(200,{configured:!!(process.env.GEMINI_API_KEY&&process.env.GEMINI_MODEL),imageConfigured:cloudflare,imageProvider:'cloudflare',...storageStatus()});}
  if(req.method==='GET'&&(pathname==='/'||pathname==='/index.html'||pathname==='/curriculum.html')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return res.end(await readFile(new URL(pathname==='/curriculum.html'?'./curriculum.html':'./index.html',import.meta.url)));}
- if(!['/api/generate','/api/curriculum','/api/image','/api/import'].includes(pathname))return send(404,{error:'Not found'});
+ if(!['/api/generate','/api/curriculum','/api/image','/api/import','/api/publish'].includes(pathname))return send(404,{error:'Not found'});
  if(req.method!=='POST')return send(405,{error:'POST required'});
  if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'JSON required'});
  if(active)return send(429,{error:'A generation is already in progress.'});
- let raw='';try{for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>(pathname==='/api/import'?500000:24000))return send(413,{error:'Request too large'});}const input=JSON.parse(raw);active=true;try{const result=pathname==='/api/import'?importDraft(input):pathname==='/api/image'?await generateImage(input):await generate(input,process.env,fetch,pathname==='/api/curriculum'?'curriculum':'content');send(result.status,result.body);}finally{active=false;}}catch{send(400,{error:'Invalid JSON request'});}
+ let raw='';try{for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>(['/api/import','/api/publish'].includes(pathname)?2000000:24000))return send(413,{error:'Request too large'});}const input=JSON.parse(raw);active=true;try{const result=pathname==='/api/import'?importDraft(input):pathname==='/api/publish'?await publishContent(input):pathname==='/api/image'?await generateImage(input):await generate(input,process.env,fetch,pathname==='/api/curriculum'?'curriculum':'content');send(result.status,result.body);}finally{active=false;}}catch{send(400,{error:'Invalid JSON request'});}
  });
 }
 if(process.argv[1]===fileURLToPath(import.meta.url))createServer().listen(Number(process.env.PORT||3000),'127.0.0.1',()=>console.log('Kidsverse ready at http://localhost:'+ (process.env.PORT||3000)));

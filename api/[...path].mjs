@@ -1,5 +1,5 @@
 import {storageStatus} from '../r2.mjs';
-import {generate, generateImage, importDraft, schemaFor} from '../server.mjs';
+import {generate, generateImage, importDraft, publishContent, schemaFor} from '../server.mjs';
 import {databaseRequest} from '../database.mjs';
 
 let active = false;
@@ -38,18 +38,18 @@ export default {
       }
     }
 
-    if (!['/api/generate', '/api/curriculum', '/api/image', '/api/import'].includes(pathname)) return json(404, {error: 'Not found'});
+    if (!['/api/generate', '/api/curriculum', '/api/image', '/api/import', '/api/publish'].includes(pathname)) return json(404, {error: 'Not found'});
     if (request.method !== 'POST') return json(405, {error: 'POST required'});
     if (!request.headers.get('content-type')?.startsWith('application/json')) return json(415, {error: 'JSON required'});
     if (active) return json(429, {error: 'A generation is already in progress.'});
 
     try {
       const raw = await request.text();
-      if (Buffer.byteLength(raw) > (pathname === '/api/import' ? 500000 : 24000)) return json(413, {error: 'Request too large'});
+      if (Buffer.byteLength(raw) > (['/api/import', '/api/publish'].includes(pathname) ? 2000000 : 24000)) return json(413, {error: 'Request too large'});
       const input = JSON.parse(raw);
       active = true;
       try {
-        const result = pathname === '/api/import' ? importDraft(input) : pathname === '/api/image' ? await generateImage(input) : await generate(input, process.env, fetch, pathname === '/api/curriculum' ? 'curriculum' : 'content');
+        const result = pathname === '/api/import' ? importDraft(input) : pathname === '/api/publish' ? await publishContent(input) : pathname === '/api/image' ? await generateImage(input) : await generate(input, process.env, fetch, pathname === '/api/curriculum' ? 'curriculum' : 'content');
         return json(result.status, result.body);
       } finally {
         active = false;
